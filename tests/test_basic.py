@@ -1,6 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time
 from typing import NamedTuple
 
 import msgpack
@@ -66,16 +66,24 @@ def test_namedtuple_must_be_strict_serialization():
          msgpickle.loads(serialized, strict=True)
 
 
-def pack_datetime(dt):
+def pack_time(dt):
     return dt.isoformat()
 
 
-def unpack_datetime(dt_str):
-    return datetime.fromisoformat(dt_str)
+def unpack_time(dt_str):
+    return time.fromisoformat(dt_str)
 
 
 # Register the datetime serializer
-msgpickle.register('datetime.datetime', pack_datetime, unpack_datetime)
+msgpickle.register('datetime.time', pack_time, unpack_time)
+
+
+@pytest.mark.parametrize("strict", [True, False])
+def test_time_serialization(strict):
+    original_time = time(1,2)
+    serialized = msgpickle.dumps(original_time, strict=strict)
+    deserialized_time = msgpickle.loads(serialized, strict=strict)
+    assert deserialized_time == original_time
 
 
 @pytest.mark.parametrize("strict", [True, False])
