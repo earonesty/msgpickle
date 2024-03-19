@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import msgpack
 import importlib
 from typing import Any, Callable, Dict, Tuple, cast
@@ -12,7 +14,7 @@ class MsgPickle:
         self.serializers: Dict[str, Tuple[Callable[[Any], Any], Callable[[Any], Any]]] = {}
         self.__sig = sorted([self.CLASS, self.MODULE, self.DATA])
 
-    def dumps(self, obj: Any, strict: bool=False) -> bytes:
+    def dumps(self, obj: Any, strict: bool = False) -> bytes:
         """Serialize an object to msgpack format, with custom handling for objects with to_pack method."""
 
         def _dump_obj(o: Any) -> Dict[str, Any]:
@@ -38,7 +40,7 @@ class MsgPickle:
 
         return cast(bytes, msgpack.dumps(obj, default=_dump_obj, strict_types=True))
 
-    def loads(self, packed: bytes, strict: bool=False) -> Any:
+    def loads(self, packed: bytes, strict: bool = False) -> Any:
         """Deserialize a msgpack format object, with custom handling for objects with from_pack method."""
 
         def object_hook(code: Any) -> Any:
@@ -104,3 +106,14 @@ _glob = MsgPickle()
 dumps = _glob.dumps
 loads = _glob.loads
 register = _glob.register
+
+
+def datetime_pack(obj):
+    return obj.isoformat()
+
+
+def datetime_unpack(obj):
+    return datetime.fromisoformat(obj)
+
+
+register('datetime.datetime', datetime_pack, datetime_unpack)
