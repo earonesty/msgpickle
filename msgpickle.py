@@ -108,11 +108,11 @@ loads = _glob.loads
 register = _glob.register
 
 
-def datetime_pack(obj):
+def datetime_pack(obj: Any) -> Any:
     return obj.isoformat()
 
 
-def datetime_unpack(obj):
+def datetime_unpack(obj: Any) -> Any:
     return datetime.fromisoformat(obj)
 
 
