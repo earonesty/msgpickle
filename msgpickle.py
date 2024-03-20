@@ -44,7 +44,7 @@ code_type_params = inspect.signature(types.CodeType).parameters
 
 def cloud_func_pack(obj: Any) -> Any:
     code_obj = obj.__code__
-    # this has a chance of woking for future versions of Python
+    # this has a chance of working for future versions of Python
     xmap = {"codestring": "code", "constants": "consts"}
     code_arg_names = [
         "co_" + xmap.get(param.name, param.name) for param in code_type_params.values()
