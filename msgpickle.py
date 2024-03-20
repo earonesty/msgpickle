@@ -85,10 +85,15 @@ class MsgPickle:
                     raise TypeError(
                         f"Object of type {full_class_name} is not deserializable"
                     )
+                ret = Unhandled
                 for hook in self.hooks:
                     ret = hook(cls, data)
                     if ret is not Unhandled:
                         return ret
+                if ret is Unhandled:
+                    raise TypeError(
+                        f"Object of type {full_class_name} is not deserializable"
+                    )
             return code
 
         return msgpack.loads(packed, object_hook=object_hook)
@@ -123,10 +128,8 @@ class MsgPickle:
             inst = cls.__new__(cls)
             inst.__dict__ = data
             return inst
-        else:
-            raise TypeError(
-                f"Object of type {cls.__module__}.{cls.__name__} is not deserializable"
-            )
+
+        return Unhandled
 
     def register(
         self, name: str, pack: Callable[[Any], Any], unpack: Callable[[Any], Any]

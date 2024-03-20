@@ -63,7 +63,7 @@ def test_namedtuple_must_be_strict_serialization():
         msgpickle.dumps(obj, strict=True)
     serialized = msgpickle.dumps(obj)
     with pytest.raises(TypeError):
-         msgpickle.loads(serialized, strict=True)
+        msgpickle.loads(serialized, strict=True)
 
 
 def pack_time(dt):
@@ -75,14 +75,29 @@ def unpack_time(dt_str):
 
 
 # Register the datetime serializer
-msgpickle.register('datetime.time', pack_time, unpack_time)
+msgpickle.register("datetime.time", pack_time, unpack_time)
 
 
 @pytest.mark.parametrize("strict", [True, False])
 def test_time_serialization(strict):
-    original_time = time(1,2)
+    original_time = time(1, 2)
     serialized = msgpickle.dumps(original_time, strict=strict)
     deserialized_time = msgpickle.loads(serialized, strict=strict)
+    assert deserialized_time == original_time
+
+
+def test_partial_registration():
+    serializer = msgpickle.MsgPickle()
+    original_time = time(1, 2)
+    with pytest.raises(TypeError):
+        serializer.dumps(original_time)
+
+    serializer.register("datetime.time", pack_time, None)
+    serialized = serializer.dumps(original_time)
+    with pytest.raises(TypeError):
+        deserialized_time = serializer.loads(serialized)
+    serializer.register("datetime.time", None, unpack_time)
+    deserialized_time = serializer.loads(serialized)
     assert deserialized_time == original_time
 
 
@@ -98,13 +113,15 @@ def test_non_serializable_function_raises():
     serializer = msgpickle.MsgPickle()
 
     with pytest.raises(TypeError) as exc_info:
-        serializer.dumps(lambda  x: x)
+        serializer.dumps(lambda x: x)
 
-    assert "Object of type" in str(exc_info.value) and "is not serializable" in str(exc_info.value)
+    assert "Object of type" in str(exc_info.value) and "is not serializable" in str(
+        exc_info.value
+    )
 
 
 class Slotted:
-    __slots__ = ['attr']  # This prevents the class from having a __dict__
+    __slots__ = ["attr"]  # This prevents the class from having a __dict__
 
     def __init__(self, attr):
         self.attr = attr
@@ -120,11 +137,22 @@ def test_slotted():
 
 def test_bad_loader():
     serializer = msgpickle.MsgPickle()
-    ser = msgpack.dumps({msgpickle.MsgPickle.CLASS: 1, msgpickle.MsgPickle.MODULE: 2, msgpickle.MsgPickle.DATA: 3})
+    ser = msgpack.dumps(
+        {
+            msgpickle.MsgPickle.CLASS: 1,
+            msgpickle.MsgPickle.MODULE: 2,
+            msgpickle.MsgPickle.DATA: 3,
+        }
+    )
     with pytest.raises(TypeError):
         serializer.loads(ser)
     ser = msgpack.dumps(
-        {msgpickle.MsgPickle.CLASS: "datetime", msgpickle.MsgPickle.MODULE: "datetime", msgpickle.MsgPickle.DATA: None})
+        {
+            msgpickle.MsgPickle.CLASS: "datetime",
+            msgpickle.MsgPickle.MODULE: "datetime",
+            msgpickle.MsgPickle.DATA: None,
+        }
+    )
     with pytest.raises(TypeError):
         serializer.loads(ser)
 
