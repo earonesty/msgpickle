@@ -81,6 +81,27 @@ pickler = MsgPickle(use_default=False, use_oo=None)
 
 Easily create a truly safe pickler, even for complex objects.  Disabling the defaults and oo hooks is sufficient for security.   Strict mode, at that point, will just prevent msgpack from serializing tuples as lists.
 
+## Custom object signatures
+
+Normally, msgpickle pickles objects as a mapping with 3 keys:  ".", "#" and "d".   It then attempts to deserialize these using your registered handlers, etc.
+
+However, you may want to customize the object signatures.   This can be done by overriding `pickler.CLASS` `pickler.MODULE` and `pickler.DATA`
+
+## Compression signatures and enumeration
+
+Normally, msgpickle pickles class and module information as strings.
+
+This can be overridden by objects as a mapping with 3 keys:  ".", "#" and "d".   It then attempts to deserialize these using your registered handlers, etc.
+
+However, you may want to customize the object signatures.   This can be done by overriding `pickler.CLASS` `pickler.MODULE` and `pickler.DATA` values.
+
+Likewise, you may not want to serialize class names and module names.
+
+You can enable enumeration using `pickler.use_enumeration([keys])`.   Without an explicit list of class paths, this will build an enumeration of all registered classes, and use that as your pickled values.   Needless to say, it's better to have an explicit list.   Changing this list or the order of the list will result in being unable to deserialize.
+
+
+This will significantly compress the output.
+
 ## Advanced Usage
 
 For more complex projects requiring different serialization/deserialization strategies, you can create instances of `MsgPickle` with custom serializers for specific types.

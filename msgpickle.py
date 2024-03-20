@@ -3,7 +3,7 @@ import inspect
 import io
 import types
 from datetime import datetime
-from typing import Any, Callable, Dict, cast
+from typing import Any, Callable, Dict, cast, Optional, Iterable
 
 import msgpack
 
@@ -82,6 +82,8 @@ class MsgPickle:
         use_default: bool = True,
         use_oo: None | tuple[str, str] = ("from_pack", "to_pack"),
     ) -> None:
+        self._name_map = None
+        self._num_map = None
         self.loaders: Dict[str, Callable[[Any], Any]] = {}
         self.dumpers: Dict[str, Callable[[Any], Any]] = {}
         self.hooks: list[Callable[[Any, Any], Any]] = []
@@ -97,14 +99,25 @@ class MsgPickle:
 
         self.use_oo = use_oo
 
+    def use_enumeration(self, enum: Optional[Iterable[str]] = None):
+        if enum is None:
+            enum = list(self.dumpers.keys())
+        self._name_map = {k: i for i, k in enumerate(enum)}
+        self._num_map = {i: k for i, k in enumerate(enum)}
+
     def dumps(self, obj: Any, strict: bool = False) -> bytes:
         """Serialize an object to msgpack format, with custom handling for objects with to_pack method."""
 
         def _dump_obj(o: Any) -> Dict[str, Any]:
-            full_class_name = f"{o.__class__.__module__}.{o.__class__.__name__}"
+            cls_name = type(o).__name__
+            mod_name = o.__class__.__module__
+            full_class_name = f"{mod_name}.{cls_name}"
+            if self._name_map:
+                cls_name = self._name_map[full_class_name]
+                mod_name = ""
             ret = {
-                self.CLASS: type(o).__name__,
-                self.MODULE: o.__class__.__module__,
+                self.CLASS: cls_name,
+                self.MODULE: mod_name,
             }
             data = Unhandled
             if serial := self.dumpers.get(full_class_name):
@@ -134,8 +147,10 @@ class MsgPickle:
             if isinstance(code, dict) and sorted(code.keys()) == self.__sig:
                 module_name = code[self.MODULE]
                 class_name = code[self.CLASS]
-                data = code[self.DATA]
+                if self._num_map:
+                    module_name, class_name = self._num_map[class_name].rsplit(".", 1)
                 full_class_name = f"{module_name}.{class_name}"
+                data = code[self.DATA]
                 if loader := self.loaders.get(full_class_name):
                     return loader(data)
                 try:

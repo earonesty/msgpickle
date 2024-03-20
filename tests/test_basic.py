@@ -90,6 +90,13 @@ msgpickle.register("datetime.time", pack_time, unpack_time)
 def test_time_serialization(strict):
     original_time = time(1, 2)
     serialized = msgpickle.dumps(original_time, strict=strict)
+
+    # ensure serialization is as expected
+    insp = msgpack.loads(serialized)
+    assert len(insp) == 3
+    assert insp["."] == "time"
+    assert insp["#"] == "datetime"
+    assert insp["d"] == "01:02:00"
     deserialized_time = msgpickle.loads(serialized, strict=strict)
     assert deserialized_time == original_time
 
@@ -103,8 +110,26 @@ def test_partial_registration():
     serializer.register("datetime.time", pack_time, None)
     serialized = serializer.dumps(original_time)
     with pytest.raises(TypeError):
-        deserialized_time = serializer.loads(serialized)
+        serializer.loads(serialized)
     serializer.register("datetime.time", None, unpack_time)
+    deserialized_time = serializer.loads(serialized)
+    assert deserialized_time == original_time
+
+
+def test_enumeration():
+    serializer = msgpickle.MsgPickle(use_default=False)
+    original_time = time(1, 2)
+    serializer.register("datetime.time", pack_time, unpack_time)
+    serializer.use_enumeration()
+    serialized = serializer.dumps(original_time)
+
+    # ensure enumeration worked the way we wanted it to
+    insp = msgpack.loads(serialized)
+    assert len(insp) == 3
+    assert insp["."] == 0
+    assert insp["#"] == ""
+    assert insp["d"] == "01:02:00"
+
     deserialized_time = serializer.loads(serialized)
     assert deserialized_time == original_time
 
