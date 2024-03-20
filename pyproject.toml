@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "msgpickle"
-version = "1.2.1"
+version = "1.3.1"
 description = "msgpack as a pickler"
 authors = [
     {name = "Erik Aronesty", email = "erik@q32.com"},

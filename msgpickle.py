@@ -77,7 +77,11 @@ class MsgPickle:
     MODULE = "#"
     DATA = "d"
 
-    def __init__(self, use_default: bool = True) -> None:
+    def __init__(
+        self,
+        use_default: bool = True,
+        use_oo: None | tuple[str, str] = ("from_pack", "to_pack"),
+    ) -> None:
         self.loaders: Dict[str, Callable[[Any], Any]] = {}
         self.dumpers: Dict[str, Callable[[Any], Any]] = {}
         self.hooks: list[Callable[[Any, Any], Any]] = []
@@ -91,6 +95,8 @@ class MsgPickle:
             self.register(*datetime_serializer)
             self.register(*function_serializer)
 
+        self.use_oo = use_oo
+
     def dumps(self, obj: Any, strict: bool = False) -> bytes:
         """Serialize an object to msgpack format, with custom handling for objects with to_pack method."""
 
@@ -103,8 +109,12 @@ class MsgPickle:
             data = Unhandled
             if serial := self.dumpers.get(full_class_name):
                 data = serial(o)
-            elif hasattr(o, "to_pack") and callable(o.to_pack):
-                data = o.to_pack()
+            elif (
+                self.use_oo
+                and hasattr(o, self.use_oo[1])
+                and callable(getattr(o, self.use_oo[1]))
+            ):
+                data = getattr(o, self.use_oo[1])()
             elif not strict:
                 for handler in self.handlers:
                     data = handler(o)
@@ -135,7 +145,11 @@ class MsgPickle:
                     raise TypeError(
                         f"Object of type {full_class_name} is not deserializable"
                     )
-                if hasattr(cls, "from_pack") and callable(cls.from_pack):
+                if (
+                    self.use_oo
+                    and hasattr(cls, self.use_oo[0])
+                    and callable(getattr(cls, self.use_oo[0]))
+                ):
                     return cls.from_pack(data)
                 if strict:
                     raise TypeError(

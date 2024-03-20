@@ -16,11 +16,11 @@ class CustomClass:
         self.attr2 = attr2
 
     def to_pack(self):
-        return self.__dict__
+        return ["CUSTOM", self.attr1, self.attr2]
 
     @classmethod
     def from_pack(cls, data):
-        return cls(**data)
+        return cls(*(data[1:]))
 
     def __repr__(self):
         return f"CustomClass(attr1={self.attr1}, attr2={self.attr2})"
@@ -39,9 +39,16 @@ class ExampleNamedTuple(NamedTuple):
 
 def test_CustomClass_serialization():
     obj = CustomClass(attr1="test1", attr2="test2")
-    serialized = msgpickle.dumps(obj)
-    deserialized = msgpickle.loads(serialized)
+    pickler = msgpickle.MsgPickle(use_default=False)
+    # this passes strict, because oo is enabled
+    serialized = pickler.dumps(obj, strict=True)
+    deserialized = pickler.loads(serialized, strict=True)
     assert deserialized.attr1 == obj.attr1 and deserialized.attr2 == obj.attr2
+
+    # disabled oo, won't load, even if default loader is present!
+    pickler = msgpickle.MsgPickle(use_oo=False)
+    with pytest.raises(TypeError):
+        pickler.loads(serialized)
 
 
 def test_ExampleDataClass_serialization():

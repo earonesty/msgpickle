@@ -70,9 +70,16 @@ You may register "None" as either the pack or unpack function.   This will use t
 
 ## Strict mode
 
-Just like `msgpack`, you can specify "strict=True" on dump and/or load.   This will not use any "default handlers" for object, but will continue to use explicit registered handlers.   
+Just like `msgpack`, you can specify "strict=True" on dump and/or load.   This will not use any "default handlers" for object, but will continue to use explicit registered handlers.
 
-Easily create  a truly safe pickler, even for complex objects.
+Disable, or rename object-oriented `from_pack` and `to_pack` to prevent a malicious payload from executing those functions.
+
+
+```
+pickler = MsgPickle(use_default=False, use_oo=None)
+```
+
+Easily create a truly safe pickler, even for complex objects.  Disabling the defaults and oo hooks is sufficient for security.   Strict mode, at that point, will just prevent msgpack from serializing tuples as lists.
 
 ## Advanced Usage
 
