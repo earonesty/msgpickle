@@ -1,5 +1,7 @@
 import importlib
+import inspect
 import io
+import types
 from datetime import datetime
 from typing import Any, Callable, Dict, cast
 
@@ -34,7 +36,40 @@ def callable_unpack(obj: Any) -> Any:
     return getattr(module, func_name)
 
 
-callable_serializer = ("builtins.function", callable_pack, callable_unpack)
+function_serializer = ("builtins.function", callable_pack, callable_unpack)
+class_serializer = ("builtins.type", callable_pack, callable_unpack)
+
+code_type_params = inspect.signature(types.CodeType).parameters
+
+
+def cloud_func_pack(obj: Any) -> Any:
+    code_obj = obj.__code__
+    # this has a chance of woking for future versions of Python
+    xmap = {"codestring": "code", "constants": "consts"}
+    code_arg_names = [
+        "co_" + xmap.get(param.name, param.name) for param in code_type_params.values()
+    ]
+
+    def convert(value):
+        if isinstance(value, tuple):
+            return list(value)
+        return value
+
+    code_attributes = [convert(getattr(code_obj, attr)) for attr in code_arg_names]
+    return code_attributes
+
+
+def cloud_func_unpack(obj: Any) -> Any:
+    def convert(value):
+        if isinstance(value, list):
+            return tuple(value)
+        return value
+
+    code_obj = types.CodeType(*[convert(v) for v in obj])
+    return types.FunctionType(code_obj, globals(), code_obj.co_name)
+
+
+cloud_function_serializer = ("builtins.function", cloud_func_pack, cloud_func_unpack)
 
 
 class MsgPickle:
@@ -54,7 +89,7 @@ class MsgPickle:
             self.add_handler(self._default_obj_dump)
             self.add_hook(self._default_obj_load)
             self.register(*datetime_serializer)
-            self.register(*callable_serializer)
+            self.register(*function_serializer)
 
     def dumps(self, obj: Any, strict: bool = False) -> bytes:
         """Serialize an object to msgpack format, with custom handling for objects with to_pack method."""
@@ -173,4 +208,13 @@ dumps = _glob.dumps
 loads = _glob.loads
 register = _glob.register
 
-__all__ = ["dumps", "loads", "register", "MsgPickle", "Unhandled"]
+__all__ = [
+    "dumps",
+    "loads",
+    "register",
+    "MsgPickle",
+    "Unhandled",
+    "datetime_serializer",
+    "function_serializer",
+    "cloud_function_serializer",
+]
