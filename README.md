@@ -38,9 +38,12 @@ print(deserialized)
 Using the cloud_function_serializer, you can serilize lambdas, as long as the python version is the same.
 
 ```
-serializer = msgpickle.MsgPickle()
+serializer = msgpickle.MsgPickle(use_default=False)
 serializer.register(*msgpickle.cloud_function_serializer)
 ```
+
+Because `use_defaults` is false, that pickler won't serialize anything
+except basic objects and lambdas
 
 ## Custom Serialization and Deserialization
 
