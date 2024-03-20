@@ -82,8 +82,8 @@ class MsgPickle:
         use_default: bool = True,
         use_oo: None | tuple[str, str] = ("from_pack", "to_pack"),
     ) -> None:
-        self._name_map = None
-        self._num_map = None
+        self._name_map: dict[str, int] = {}
+        self._num_map: dict[int, str] = {}
         self.loaders: Dict[str, Callable[[Any], Any]] = {}
         self.dumpers: Dict[str, Callable[[Any], Any]] = {}
         self.hooks: list[Callable[[Any, Any], Any]] = []
@@ -99,7 +99,7 @@ class MsgPickle:
 
         self.use_oo = use_oo
 
-    def use_enumeration(self, enum: Optional[Iterable[str]] = None):
+    def use_enumeration(self, enum: Optional[Iterable[str]] = None) -> None:
         if enum is None:
             enum = list(self.dumpers.keys())
         self._name_map = {k: i for i, k in enumerate(enum)}
@@ -109,7 +109,7 @@ class MsgPickle:
         """Serialize an object to msgpack format, with custom handling for objects with to_pack method."""
 
         def _dump_obj(o: Any) -> Dict[str, Any]:
-            cls_name = type(o).__name__
+            cls_name: str | int = type(o).__name__
             mod_name = o.__class__.__module__
             full_class_name = f"{mod_name}.{cls_name}"
             if self._name_map:
