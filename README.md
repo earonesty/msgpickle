@@ -72,7 +72,7 @@ You may register "None" as either the pack or unpack function.   This will use t
 
 Just like `msgpack`, you can specify "strict=True" on dump and/or load.   This will not use any "default handlers" for object, but will continue to use explicit registered handlers.   
 
-That means you can get a truly safe pickler, even for complex objects.
+Easily create  a truly safe pickler, even for complex objects.
 
 ## Advanced Usage
 
