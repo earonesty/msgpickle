@@ -132,6 +132,14 @@ def test_non_serializable_function_raises():
     )
 
 
+def test_cloud_functions():
+    serializer = msgpickle.MsgPickle(use_default=False)
+    serializer.register(*msgpickle.cloud_function_serializer)
+    res = serializer.dumps(lambda x: 4)
+    ok = serializer.loads(res)
+    assert ok(4) == 4
+
+
 def test_non_serializable_stuff(tmp_path):
     serializer = msgpickle.MsgPickle()
 

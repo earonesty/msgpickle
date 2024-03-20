@@ -1,6 +1,6 @@
 # msgpickle
 
-`msgpickle` is a library that enhances `msgpack` for Python, providing a more extensive pickling mechanism.
+`msgpickle` is a library that enhances `msgpack` for Python, providing extensive pickling mechanism, including lambda support.
 
 ## Description
 
@@ -33,6 +33,14 @@ deserialized = msgpickle.loads(serialized)
 print(deserialized)
 ```
 
+## Support lambdas, cloud-functions across server farms
+
+Using the cloud_function_serializer, you can serilize lambdas, as long as the python version is the same.
+
+```
+serializer = msgpickle.MsgPickle()
+serializer.register(*msgpickle.cloud_function_serializer)
+```
 
 ## Custom Serialization and Deserialization
 
