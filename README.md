@@ -68,6 +68,12 @@ msgpickle.register('datetime.datetime', datetime_pack, datetime_unpack)
 
 You may register "None" as either the pack or unpack function.   This will use the default instead for that class.
 
+## Strict mode
+
+Just like `msgpack`, you can specify "strict=True" on dump and/or load.   This will not use any "default handlers" for object, but will continue to use explicit registered handlers.   
+
+Easily create  a truly safe pickler, even for complex objects.
+
 ## Advanced Usage
 
 For more complex projects requiring different serialization/deserialization strategies, you can create instances of `MsgPickle` with custom serializers for specific types.
