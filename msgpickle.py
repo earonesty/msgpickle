@@ -1,8 +1,20 @@
+import importlib
 from datetime import datetime
+from typing import Any, Callable, Dict, cast
 
 import msgpack
-import importlib
-from typing import Any, Callable, Dict, Tuple, cast
+
+
+class Unhandled:
+    pass
+
+
+def datetime_pack(obj: Any) -> Any:
+    return obj.isoformat()
+
+
+def datetime_unpack(obj: Any) -> Any:
+    return datetime.fromisoformat(obj)
 
 
 class MsgPickle:
@@ -10,9 +22,18 @@ class MsgPickle:
     MODULE = "#"
     DATA = "d"
 
-    def __init__(self) -> None:
-        self.serializers: Dict[str, Tuple[Callable[[Any], Any], Callable[[Any], Any]]] = {}
+    def __init__(self, use_default=True) -> None:
+        self.loaders: Dict[str, Callable[[Any], Any]] = {}
+        self.dumpers: Dict[str, Callable[[Any], Any]] = {}
+        self.hooks: list[Callable[[Any, Any], Any]] = []
+        self.handlers: list[Callable[[Any], Any]] = []
+
         self.__sig = sorted([self.CLASS, self.MODULE, self.DATA])
+
+        if use_default:
+            self.add_handler(self._default_obj_dump)
+            self.add_hook(self._default_obj_load)
+            self.register("datetime.datetime", datetime_pack, datetime_unpack)
 
     def dumps(self, obj: Any, strict: bool = False) -> bytes:
         """Serialize an object to msgpack format, with custom handling for objects with to_pack method."""
@@ -23,17 +44,17 @@ class MsgPickle:
                 self.CLASS: type(o).__name__,
                 self.MODULE: o.__class__.__module__,
             }
-            if full_class_name in self.serializers and (serial := self.serializers[full_class_name]):
-                pack, _ = serial
-            else:
-                pack = None
-            if pack is not None:
-                data = pack(o)
-            elif hasattr(o, 'to_pack') and callable(o.to_pack):
+            data = Unhandled
+            if serial := self.dumpers.get(full_class_name):
+                data = serial(o)
+            elif hasattr(o, "to_pack") and callable(o.to_pack):
                 data = o.to_pack()
-            elif not strict and ret[self.MODULE] not in ["builtins"]:
-                data = self._default_obj_dump(o)
-            else:
+            elif not strict:
+                for handler in self.handlers:
+                    data = handler(o)
+                    if data is not Unhandled:
+                        break
+            if data is Unhandled:
                 raise TypeError(f"Object of type {full_class_name} is not serializable")
             ret[self.DATA] = data
             return ret
@@ -49,43 +70,51 @@ class MsgPickle:
                 class_name = code[self.CLASS]
                 data = code[self.DATA]
                 full_class_name = f"{module_name}.{class_name}"
-                if full_class_name in self.serializers:
-                    _, unpack = self.serializers[full_class_name]
-                    if unpack is not None:
-                        return unpack(data)
+                if loader := self.loaders.get(full_class_name):
+                    return loader(data)
                 try:
                     module = importlib.import_module(module_name)
                     cls = getattr(module, class_name)
                 except (AttributeError, ImportError):
-                    raise TypeError(f"Object of type {full_class_name} is not deserializable")
-                if hasattr(cls, 'from_pack') and callable(cls.from_pack):
+                    raise TypeError(
+                        f"Object of type {full_class_name} is not deserializable"
+                    )
+                if hasattr(cls, "from_pack") and callable(cls.from_pack):
                     return cls.from_pack(data)
                 if strict:
-                    raise TypeError(f"Object of type {full_class_name} is not deserializable")
-                return self._default_obj_load(cls, data)
-
+                    raise TypeError(
+                        f"Object of type {full_class_name} is not deserializable"
+                    )
+                for hook in self.hooks:
+                    ret = hook(cls, data)
+                    if ret is not Unhandled:
+                        return ret
             return code
 
         return msgpack.loads(packed, object_hook=object_hook)
 
     @staticmethod
     def _default_obj_dump(o: Any) -> Any:
+        if o.__class__.__module__ in ["builtins"]:
+            return Unhandled
+
         data: Any
-        if hasattr(o, '__dict__') and isinstance(o.__dict__, dict):
+        if hasattr(o, "__dict__") and isinstance(o.__dict__, dict):
             data = o.__dict__
         elif isinstance(o, tuple):
             data = list(o)
-        elif hasattr(o, '__slots__'):
+        elif hasattr(o, "__slots__"):
             data = {slot: getattr(o, slot) for slot in o.__slots__}
         else:
-            raise TypeError(f"Object of type {type(o)} is not serializable")
+            return Unhandled
+
         return data
 
     @staticmethod
     def _default_obj_load(cls: Any, data: Any) -> Any:
         if isinstance(data, list):
             return cls(*data)
-        elif hasattr(cls, '__slots__'):
+        elif hasattr(cls, "__slots__"):
             inst = cls.__new__(cls, *data)
             for k, v in data.items():
                 setattr(inst, k, v)
@@ -95,10 +124,23 @@ class MsgPickle:
             inst.__dict__ = data
             return inst
         else:
-            raise TypeError(f"Object of type {cls.__module__}.{cls.__name__} is not deserializable")
+            raise TypeError(
+                f"Object of type {cls.__module__}.{cls.__name__} is not deserializable"
+            )
 
-    def register(self, name: str, pack: Callable[[Any], Any], unpack: Callable[[Any], Any]) -> None:
-        self.serializers[name] = (pack, unpack)
+    def register(
+        self, name: str, pack: Callable[[Any], Any], unpack: Callable[[Any], Any]
+    ) -> None:
+        if pack is not None:
+            self.dumpers[name] = pack
+        if unpack is not None:
+            self.loaders[name] = unpack
+
+    def add_hook(self, hook: Callable[[Any, Any], Any]) -> None:
+        self.hooks.append(hook)
+
+    def add_handler(self, handler: Callable[[Any], Any]) -> None:
+        self.handlers.append(handler)
 
 
 _glob = MsgPickle()
@@ -106,14 +148,3 @@ _glob = MsgPickle()
 dumps = _glob.dumps
 loads = _glob.loads
 register = _glob.register
-
-
-def datetime_pack(obj: Any) -> Any:
-    return obj.isoformat()
-
-
-def datetime_unpack(obj: Any) -> Any:
-    return datetime.fromisoformat(obj)
-
-
-register('datetime.datetime', datetime_pack, datetime_unpack)
