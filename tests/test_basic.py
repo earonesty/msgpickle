@@ -140,6 +140,23 @@ def test_cloud_functions():
     assert ok(4) == 4
 
 
+class MyClass:
+    def __init__(self, x):
+        self.__x = x
+
+    @property
+    def x(self):
+        return self.__x
+
+
+def test_my_class():
+    serializer = msgpickle.MsgPickle(use_default=True)
+    my = MyClass(6)
+    res = serializer.dumps(my)
+    ok = serializer.loads(res)
+    assert ok.x == 6
+
+
 def test_non_serializable_stuff(tmp_path):
     serializer = msgpickle.MsgPickle()
 
