@@ -1,4 +1,5 @@
 import importlib
+import io
 from datetime import datetime
 from typing import Any, Callable, Dict, cast
 
@@ -17,6 +18,25 @@ def datetime_unpack(obj: Any) -> Any:
     return datetime.fromisoformat(obj)
 
 
+datetime_serializer = ("datetime.datetime", datetime_pack, datetime_unpack)
+
+
+def callable_pack(obj: Any) -> Any:
+    module = importlib.import_module(obj.__module__)
+    if getattr(module, obj.__name__, None) is not obj:
+        return Unhandled
+    return [obj.__module__, obj.__name__]
+
+
+def callable_unpack(obj: Any) -> Any:
+    module_name, func_name = obj
+    module = importlib.import_module(module_name)
+    return getattr(module, func_name)
+
+
+callable_serializer = ("builtins.function", callable_pack, callable_unpack)
+
+
 class MsgPickle:
     CLASS = "."
     MODULE = "#"
@@ -33,7 +53,8 @@ class MsgPickle:
         if use_default:
             self.add_handler(self._default_obj_dump)
             self.add_hook(self._default_obj_load)
-            self.register("datetime.datetime", datetime_pack, datetime_unpack)
+            self.register(*datetime_serializer)
+            self.register(*callable_serializer)
 
     def dumps(self, obj: Any, strict: bool = False) -> bytes:
         """Serialize an object to msgpack format, with custom handling for objects with to_pack method."""
@@ -100,7 +121,7 @@ class MsgPickle:
 
     @staticmethod
     def _default_obj_dump(o: Any) -> Any:
-        if o.__class__.__module__ in ["builtins"]:
+        if isinstance(o, io.IOBase):
             return Unhandled
 
         data: Any
@@ -108,7 +129,7 @@ class MsgPickle:
             data = o.__dict__
         elif isinstance(o, tuple):
             data = list(o)
-        elif hasattr(o, "__slots__"):
+        elif hasattr(o.__class__, "__slots__"):
             data = {slot: getattr(o, slot) for slot in o.__slots__}
         else:
             return Unhandled
@@ -151,3 +172,5 @@ _glob = MsgPickle()
 dumps = _glob.dumps
 loads = _glob.loads
 register = _glob.register
+
+__all__ = ["dumps", "loads", "register", "MsgPickle", "Unhandled"]

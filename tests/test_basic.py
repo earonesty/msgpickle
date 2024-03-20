@@ -1,3 +1,4 @@
+import threading
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, time
@@ -109,6 +110,17 @@ def test_datetime_serialization(strict):
     assert deserialized_datetime == original_datetime
 
 
+def func1():
+    return 1
+
+
+@pytest.mark.parametrize("strict", [True, False])
+def test_function_serialization(strict):
+    serialized = msgpickle.dumps(func1, strict=strict)
+    deserialized_func = msgpickle.loads(serialized, strict=strict)
+    assert deserialized_func() == 1
+
+
 def test_non_serializable_function_raises():
     serializer = msgpickle.MsgPickle()
 
@@ -118,6 +130,20 @@ def test_non_serializable_function_raises():
     assert "Object of type" in str(exc_info.value) and "is not serializable" in str(
         exc_info.value
     )
+
+
+def test_non_serializable_stuff(tmp_path):
+    serializer = msgpickle.MsgPickle()
+
+    with open(tmp_path / "x", "w") as of:
+        with pytest.raises(TypeError):
+            serializer.dumps(of)
+
+    with pytest.raises(TypeError):
+        serializer.dumps(threading.Thread())
+
+    with pytest.raises(TypeError):
+        serializer.dumps(threading.Lock())
 
 
 class Slotted:
