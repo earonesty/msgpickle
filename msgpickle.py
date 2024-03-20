@@ -50,7 +50,7 @@ def cloud_func_pack(obj: Any) -> Any:
         "co_" + xmap.get(param.name, param.name) for param in code_type_params.values()
     ]
 
-    def convert(value):
+    def convert(value: Any) -> Any:
         if isinstance(value, tuple):
             return list(value)
         return value
@@ -60,7 +60,7 @@ def cloud_func_pack(obj: Any) -> Any:
 
 
 def cloud_func_unpack(obj: Any) -> Any:
-    def convert(value):
+    def convert(value: Any) -> Any:
         if isinstance(value, list):
             return tuple(value)
         return value
@@ -77,7 +77,7 @@ class MsgPickle:
     MODULE = "#"
     DATA = "d"
 
-    def __init__(self, use_default=True) -> None:
+    def __init__(self, use_default: bool = True) -> None:
         self.loaders: Dict[str, Callable[[Any], Any]] = {}
         self.dumpers: Dict[str, Callable[[Any], Any]] = {}
         self.hooks: list[Callable[[Any, Any], Any]] = []
