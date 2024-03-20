@@ -82,7 +82,9 @@ serialized_data = msgpickle.dumps(obj)
 deserialized_data = msgpickle.loads(dat)
 
 print(deserialized_data)
+```
 
+Alternately, you can create `to_pack()` and `from_pack()` functions in your class, which will be used instead.
 
 ## License
 
